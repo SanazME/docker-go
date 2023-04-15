@@ -13,6 +13,8 @@ func main() {
 	switch os.Args[1] {
 	case "run":
 		run()
+	case "child":
+		child()
 
 	default:
 		panic("bad command!")
@@ -21,10 +23,12 @@ func main() {
 
 }
 
+// This process creates a namespace
 func run() {
 	fmt.Printf("Running %v\n", os.Args[0:]) // 0: path 1: command 2: args and params
 
-	cmd := exec.Command(os.Args[2], os.Args[3:]...) // run whatever command is passed in + any params
+	// Run itself (this process again)
+	cmd := exec.Command("/proc/self/exe", append([]string {"child"}, os.Args[2:]...)...)
 	// wire up to see os stdin will go to our cmd stdin
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -34,8 +38,23 @@ func run() {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWNS, // New mount namespace group
 	}
+	cmd.Run() // inside here we're actually getting a clone of a new process and a namespace (it doesn't exit before that)
 
-	cmd.Run()
+	// set hostname in our containerized process
+	syscall.Sethostname([]byte("container"))
+}
+
+// In run, we clone a new process and in child we actually run that cloned process with a hostname that we set
+func child() {
+	fmt.Printf("Running %v\n", os.Args[0:]) // 0: path 1: command 2: args and params
+
+	cmd := exec.Command(os.Args[2], os.Args[3:]...) // run whatever command is passed in + any params
+	// wire up to see os stdin will go to our cmd stdin
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	
+	cmd.Run() // inside here we're actually getting a clone of a new process and a namespace (it doesn't exit before that)
 }
 
 func must(err error) {
