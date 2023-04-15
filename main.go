@@ -20,7 +20,10 @@ func main() {
 }
 
 func run() {
-	fmt.Printf("Running %v\n", os.Args[2:])
+	fmt.Printf("Running %v\n", os.Args[0:])
+
+	// cmd := exec.Command(os.Args[])
+	// cmd.Run()
 }
 
 func must(err error) {
