@@ -25,7 +25,7 @@ func main() {
 
 // This process creates a namespace
 func run() {
-	fmt.Printf("Running %v\n", os.Args[0:]) // 0: path 1: command 2: args and params
+	fmt.Printf("Running %v as %d\n", os.Args[0:], os.Getpid()) // 0: path 1: command 2: args and params
 
 	// Run itself (this process again)
 	cmd := exec.Command("/proc/self/exe", append([]string {"child"}, os.Args[2:]...)...)
