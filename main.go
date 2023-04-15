@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"syscall"
 )
 
 // docker 			run image <cmd> <params>
@@ -28,6 +29,11 @@ func run() {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	// to containerize our command, we create a namespace
+	// Cloneflags: cloning is what creates a new process in which we run our commands
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: syscall.CLONE_NEWNS, // New mount namespace group
+	}
 
 	cmd.Run()
 }
