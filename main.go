@@ -52,6 +52,8 @@ func child() {
 	// Change the root of what container can see, we want to have our own version of /proc directory in our container. we use ROOT_FOR_CONTAINER of ubuntu container:
 	syscall.Chroot("vagrant/ubuntu-fs") // this directory will be our root
 	syscall.Chdir("/") // change directory to root
+	// we need to mount that directory (/proc) as proc pseudo filesystem so the kernel knows that we’re going to populate that with all the information about these running processes.
+	syscall.Mount("proc", "proc", "proc", 0, "") 
 
 	cmd := exec.Command(os.Args[2], os.Args[3:]...) // run whatever command is passed in + any params
 	// wire up to see os stdin will go to our cmd stdin
