@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"syscall"
 )
 
@@ -28,7 +31,7 @@ func run() {
 	fmt.Printf("Running %v as %d\n", os.Args[0:], os.Getpid()) // 0: path 1: command 2: args and params
 
 	// Run itself (this process again)
-	cmd := exec.Command("/proc/self/exe", append([]string {"child"}, os.Args[2:]...)...)
+	cmd := exec.Command("/proc/self/exe", append([]string{"child"}, os.Args[2:]...)...)
 	// wire up to see os stdin will go to our cmd stdin
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -46,24 +49,38 @@ func run() {
 func child() {
 	fmt.Printf("Running %v\n", os.Args[0:]) // 0: path 1: command 2: args and params
 
+	cg()
+
 	// Set hostname for the child process
 	syscall.Sethostname([]byte("container"))
 
 	// Change the root of what container can see, we want to have our own version of /proc directory in our container. we use ROOT_FOR_CONTAINER of ubuntu container:
 	syscall.Chroot("vagrant/ubuntu-fs") // this directory will be our root
-	syscall.Chdir("/") // change directory to root
+	syscall.Chdir("/")                  // change directory to root
 	// we need to mount that directory (/proc) as proc pseudo filesystem so the kernel knows that we’re going to populate that with all the information about these running processes.
-	syscall.Mount("proc", "proc", "proc", 0, "") 
+	syscall.Mount("proc", "proc", "proc", 0, "")
 
 	cmd := exec.Command(os.Args[2], os.Args[3:]...) // run whatever command is passed in + any params
 	// wire up to see os stdin will go to our cmd stdin
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	
+
 	cmd.Run()
 
 	syscall.Unmount("/proc", 0)
+}
+
+// /sys/fs/cgroup/memory
+// /sys/fs/cgroup/pids
+func cg() {
+	cgroups := "/sys/fs/cgroup/"
+	pids := filepath.Join(cgroups, "pids")
+	os.Mkdir(filepath.Join(pids, "snz"), 0755)
+	must(ioutil.WriteFile(filepath.Join(pids, "snz/pids.max"), []byte("20"), 0700))
+	// Removes the new cgroup in place after the container exits
+	must(ioutil.WriteFile(filepath.Join(pids, "snz/notify_on_release"), []byte("1"), 0700))
+	must(ioutil.WriteFile(filepath.Join(pids, "snz/cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0700))
 }
 
 func must(err error) {
